@@ -46,6 +46,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -290,6 +291,53 @@ public class TextUnitWS {
         textUnitDTO.setTmTextUnitCurrentVariantId(addTMTextUnitCurrentVariant.getId());
         textUnitDTO.setTmTextUnitVariantId(addTMTextUnitCurrentVariant.getTmTextUnitVariant().getId());
         return textUnitDTO;
+    }
+
+    /**
+     * Modify TextUnit.
+     *
+     * @param textUnitDTO data used to update the TMTextUnitCurrentVariant. {@link TextUnitDTO#getTmTextUnitId()},
+     *                    {@link TextUnitDTO#getLocaleId()}, {@link TextUnitDTO#getTarget()} are
+     *                    the only 3 fields that are used for the update.
+     * @return the created TextUnit (contains the new translation with its id)
+     */
+    @Transactional
+    @RequestMapping(method = RequestMethod.POST, value = "/api/textunits/live")
+    public TextUnitDTO liveTextUnit(@RequestBody TextUnitDTO textUnitDTO) throws InvalidTextUnitSearchParameterException, TextUnitWithIdNotFoundException {
+        logger.debug("Live Edit TextUnit");
+
+        // search textunit
+        TextUnitSearcherParameters textUnitSearcherParameters = queryParamsToTextUnitSearcherParameters(
+                null, new ArrayList<String>(Arrays.asList(textUnitDTO.getRepositoryName())), null,
+                textUnitDTO.getName(), null, null, null, null,
+                true, false, new ArrayList<String>(Arrays.asList(textUnitDTO.getTargetLocale())),
+                null, null, null, null,
+                null, null,null
+        );
+        textUnitSearcherParameters.setLimit(1);
+        textUnitSearcherParameters.setOffset(0);
+        List<TextUnitDTO> searchResults = textUnitSearcher.search(textUnitSearcherParameters);
+
+        if (CollectionUtils.isEmpty(searchResults)) {
+            throw new TextUnitWithIdNotFoundException(textUnitDTO.getName());
+        }
+
+        TextUnitDTO targetTextUnit = searchResults.get(0);
+        targetTextUnit.setTarget(textUnitDTO.getTarget());
+        targetTextUnit.setStatus(TMTextUnitVariant.Status.REVIEW_NEEDED);
+
+        targetTextUnit.setTarget(NormalizationUtils.normalize(targetTextUnit.getTarget()));
+        TMTextUnitCurrentVariant addTMTextUnitCurrentVariant = tmService.addTMTextUnitCurrentVariant(
+                targetTextUnit.getTmTextUnitId(),
+                targetTextUnit.getLocaleId(),
+                targetTextUnit.getTarget(),
+                targetTextUnit.getTargetComment(),
+                targetTextUnit.getStatus(),
+                targetTextUnit.isIncludedInLocalizedFile());
+
+        targetTextUnit.setTmTextUnitCurrentVariantId(addTMTextUnitCurrentVariant.getId());
+        targetTextUnit.setTmTextUnitVariantId(addTMTextUnitCurrentVariant.getTmTextUnitVariant().getId());
+        return targetTextUnit;
     }
 
     /**

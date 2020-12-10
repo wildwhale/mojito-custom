@@ -14,9 +14,16 @@ public class EntityWithIdNotFoundException extends Exception {
     public EntityWithIdNotFoundException(String entity, Long id) {
         super(getMessage(entity, id));
     }
-    
+
+    public EntityWithIdNotFoundException(String entity, String name) {
+        super(getMessage(entity, name));
+    }
+
     static String getMessage(String entity, Long id) {
         return MessageFormat.format("{0} with id: {1} not found", entity, id.toString());
     }
 
+    static String getMessage(String entity, String name) {
+        return MessageFormat.format("{0} with name: {1} not found", entity, name);
+    }
 }
