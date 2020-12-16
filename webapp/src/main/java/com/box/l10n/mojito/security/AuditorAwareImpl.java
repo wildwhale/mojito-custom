@@ -22,7 +22,11 @@ public class AuditorAwareImpl implements AuditorAware<User> {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication != null && authentication.isAuthenticated()) {
-            currentAuditor = ((UserDetailsImpl) authentication.getPrincipal()).getUser();
+            // Live edit에는 인증이 없어서 수정
+            try {
+                currentAuditor = ((UserDetailsImpl) authentication.getPrincipal()).getUser();
+            } catch (Exception e) {
+            }
         }
 
         return currentAuditor;

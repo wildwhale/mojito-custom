@@ -302,7 +302,7 @@ public class TextUnitWS {
      * @return the created TextUnit (contains the new translation with its id)
      */
     @Transactional
-    @RequestMapping(method = RequestMethod.POST, value = "/api/textunits/live")
+    @RequestMapping(method = RequestMethod.POST, value = "/extend/api/textunits/live")
     public TextUnitDTO liveTextUnit(@RequestBody TextUnitDTO textUnitDTO) throws InvalidTextUnitSearchParameterException, TextUnitWithIdNotFoundException {
         logger.debug("Live Edit TextUnit");
 

@@ -160,10 +160,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
         http.headers().cacheControl().disable();
 
-        http.csrf().ignoringAntMatchers("/shutdown", "/api/rotation");
-
+        /*
+         *  기존 프로젝트 확장해서 만든 extend/api 인증 절차를 거치지 않고 모두 허가
+         */
+        http.csrf().ignoringAntMatchers("/shutdown", "/api/rotation", "/extend/api/**");
         http.authorizeRequests()
-                .antMatchers("/intl/*", "/img/*", "/fonts/*", "/login/**", "/webjars/**", "/cli/**", "/health").permitAll()
+                .antMatchers("/intl/*", "/img/*", "/fonts/*", "/login/**", "/webjars/**", "/cli/**", "/health", "/extend/api/**").permitAll()
                 .antMatchers("/shutdown", "/api/rotation").hasIpAddress("127.0.0.1").anyRequest().permitAll()
                 .anyRequest().fullyAuthenticated()
                 .and()
