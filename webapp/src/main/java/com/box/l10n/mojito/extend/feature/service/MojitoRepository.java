@@ -9,6 +9,7 @@ import com.box.l10n.mojito.rest.client.exception.AssetNotFoundException;
 import com.box.l10n.mojito.rest.entity.LocalizedAssetBody;
 import com.box.l10n.mojito.rest.entity.Repository;
 import com.box.l10n.mojito.rest.entity.SourceAsset;
+import com.box.l10n.mojito.rest.repository.RepositoryWithIdNotFoundException;
 import com.box.l10n.mojito.service.locale.LocaleRepository;
 import com.box.l10n.mojito.service.repository.RepositoryLocaleCreationException;
 import com.box.l10n.mojito.service.repository.RepositoryNameAlreadyUsedException;
@@ -38,8 +39,8 @@ public class MojitoRepository {
 
 //    @Autowired
 //    LocaleClient localeClient;
-    @Autowired
-    RepositoryClient repositoryClient;
+//    @Autowired
+//    RepositoryClient repositoryClient;
 
     @Autowired
     LocaleRepository localeRepository;
@@ -50,7 +51,7 @@ public class MojitoRepository {
     @Autowired
     PullService pullService;
 
-    public com.box.l10n.mojito.entity.Repository push(Repository repository, Stream<SourceAsset> sourceAssetStream, String branchName) throws CommandException {
+    public com.box.l10n.mojito.entity.Repository push(Repository repository, Stream<SourceAsset> sourceAssetStream, String branchName) throws CommandException, RepositoryWithIdNotFoundException {
         return pushService.execute(repository, sourceAssetStream, branchName, PushService.PushType.NORMAL);
     }
 

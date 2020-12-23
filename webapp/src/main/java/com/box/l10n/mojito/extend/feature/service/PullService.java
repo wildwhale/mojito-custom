@@ -61,6 +61,7 @@ public class PullService {
             List<String> files = generateLocalizedFilesWithoutLocaleMapping(repository, sourceFileMatch, repositoryLocalesWithoutRootLocale, filterOptions, status);
             localizedFiles.addAll(files);
         }
+        logger.info("{} mojito repo pull complete", mojitoRepoName);
         return localizedFiles;
     }
 

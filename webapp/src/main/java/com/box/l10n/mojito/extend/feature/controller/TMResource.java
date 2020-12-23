@@ -25,6 +25,7 @@ public class TMResource {
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/upload", method = RequestMethod.POST)
     public ResponseEntity<UploadRes> upload(@RequestBody UploadParam uploadParam) throws Exception {
+        logger.info("TM resource upload start");
         Repository repository = resourceService.upload(uploadParam);
         UploadRes response = new UploadRes(repository);
         return new ResponseEntity<>(response, HttpStatus.OK);
@@ -33,6 +34,7 @@ public class TMResource {
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/upload/async", method = RequestMethod.POST)
     public void asyncUpload(@RequestBody UploadParam uploadParam) throws Exception {
+        logger.info("TM resource async upload start");
         resourceService.asyncUpload(uploadParam);
     }
 
@@ -42,6 +44,7 @@ public class TMResource {
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/deploy", method = RequestMethod.POST)
     public ResponseEntity<DeployRes> deploy(@RequestBody DeployParam deployParam) throws Exception {
+        logger.info("TM resource deploy start");
         List<String> localizedFiles = resourceService.deploy(deployParam);
         DeployRes response = new DeployRes(localizedFiles);
         return new ResponseEntity<>(response, HttpStatus.OK);
@@ -50,12 +53,14 @@ public class TMResource {
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/deploy/async", method = RequestMethod.POST)
     public void asyncDeploy(@RequestBody DeployParam deployParam) throws Exception {
+        logger.info("TM resource async deploy start");
         resourceService.asyncDeploy(deployParam);
     }
 
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/delete", method = RequestMethod.POST)
     public void delete(@RequestBody DeleteParam deleteParam) throws RepositoryNotFoundException {
+        logger.info("TM mojito repository delete start");
         resourceService.deleteRepository(deleteParam.getRepositoryName());
     }
 }

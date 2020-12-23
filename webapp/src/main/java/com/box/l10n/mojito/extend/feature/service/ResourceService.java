@@ -7,18 +7,25 @@ import com.box.l10n.mojito.rest.client.RepositoryClient;
 import com.box.l10n.mojito.rest.client.exception.RepositoryNotFoundException;
 import com.box.l10n.mojito.rest.entity.Repository;
 import com.box.l10n.mojito.rest.entity.SourceAsset;
+import com.box.l10n.mojito.rest.repository.RepositoryWithIdNotFoundException;
+import com.box.l10n.mojito.service.repository.RepositoryRepository;
+import com.box.l10n.mojito.service.repository.RepositoryService;
+import org.apache.commons.lang.StringUtils;
 import org.eclipse.jgit.api.Git;
+import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.ui.ModelMap;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -32,7 +39,13 @@ public class ResourceService {
     @Autowired
     ResourceExtractor resourceExtractor;
     @Autowired
-    RepositoryClient repositoryClient;
+    RepositoryService repositoryService;
+    @Autowired
+    RepositoryRepository repositoryRepository;
+//    @Autowired
+//    ModelMapper modelMapper;
+//    @Autowired
+//    RepositoryClient repositoryClient;
 
     public com.box.l10n.mojito.entity.Repository upload(UploadParam param) throws Exception {
         // git checkout or pull in local working dir
@@ -53,10 +66,12 @@ public class ResourceService {
     public List<String> deploy(DeployParam param) throws Exception {
         // working git branch로 변경
         Git gitRepo = GitUtils.checkoutCommand(param.getGitRepoName(), param.getFromBranch());
+        logger.info("{} git repo checkout complete", param.getGitRepoName());
         // pullCommand process 진행 (mojito db 내용을 file로 생성 )
         List<String> localizedFiles = mojitoRepository.pull(param.getGitRepoName(), param.getMojitoRepoName(), param.getStatus());
         // modify VERSION file ( file open & 수정 )
         modifyVersion(gitRepo, param.getVersion());
+        logger.info("modify {} version ", param.getVersion());
         // commit & push
         GitUtils.pushAllChanged(gitRepo, param.getGitId(), param.getGitPassword(), param.getCommitMessage());
         // checkout target branch
@@ -76,16 +91,19 @@ public class ResourceService {
     }
 
     private void createMojitoRepository(String mojitoRepoName, String[] locales) throws CommandException {
+        logger.info("create mojito repository : {} / locales : {}", mojitoRepoName, StringUtils.join(locales, ", "));
         mojitoRepository.create(mojitoRepoName, locales);
     }
 
     private Stream<SourceAsset> extractResource(File repo, String mojitoRepoName, String fileType) throws CommandException {
         String resourcePath = repo.getPath() + "/" + mojitoRepoName;
+        logger.info("{} file content extract", resourcePath);
         return resourceExtractor.extract(resourcePath, mojitoRepoName, fileType);
     }
 
-    private com.box.l10n.mojito.entity.Repository pushMojitoResource(String mojitoRepoName, Stream<SourceAsset> assetStream) throws CommandException {
+    private com.box.l10n.mojito.entity.Repository pushMojitoResource(String mojitoRepoName, Stream<SourceAsset> assetStream) throws CommandException, RepositoryWithIdNotFoundException {
         Repository repository = resourceExtractor.getRepository(mojitoRepoName);
+        logger.info("push extracted data to {}", repository.getName());
         return mojitoRepository.push(repository, assetStream, null);
     }
 
@@ -99,7 +117,12 @@ public class ResourceService {
     }
 
     public void deleteRepository(String repositoryName) throws RepositoryNotFoundException {
-        repositoryClient.deleteRepositoryByName(repositoryName);
+//        repositoryClient.deleteRepositoryByName(repositoryName);
+        List<com.box.l10n.mojito.entity.Repository> repositories = repositoryService.findRepositoriesIsNotDeletedOrderByName(repositoryName);
+        if (repositories.size() != 1) {
+            throw new RepositoryNotFoundException("Repository with name [" + repositoryName + "] is not found");
+        }
+        repositoryService.deleteRepository(repositories.get(0));
         logger.info("{} delete complete", repositoryName);
     }
 }

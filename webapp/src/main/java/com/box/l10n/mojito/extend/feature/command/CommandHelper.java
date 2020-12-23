@@ -7,13 +7,19 @@ import com.box.l10n.mojito.extend.feature.filefinder.file.FileType;
 import com.box.l10n.mojito.extend.feature.filefinder.file.XcodeXliffFileType;
 import com.box.l10n.mojito.rest.client.PollableTaskClient;
 import com.box.l10n.mojito.rest.client.RepositoryClient;
+import com.box.l10n.mojito.rest.client.WaitForPollableTaskListener;
 import com.box.l10n.mojito.rest.client.exception.PollableTaskException;
+import com.box.l10n.mojito.rest.client.exception.PollableTaskExecutionException;
+import com.box.l10n.mojito.rest.client.exception.PollableTaskTimeoutException;
 import com.box.l10n.mojito.rest.client.exception.RestClientException;
 import com.box.l10n.mojito.rest.entity.Locale;
 import com.box.l10n.mojito.rest.entity.PollableTask;
 import com.box.l10n.mojito.rest.entity.Repository;
 import com.box.l10n.mojito.rest.entity.RepositoryLocale;
+import com.box.l10n.mojito.service.pollableTask.PollableTaskBlobStorage;
+import com.box.l10n.mojito.service.pollableTask.PollableTaskService;
 import com.box.l10n.mojito.service.repository.RepositoryService;
+import com.box.l10n.mojito.service.tm.TMXliffRepository;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -23,6 +29,7 @@ import org.apache.commons.io.ByteOrderMark;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.BOMInputStream;
+import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.modelmapper.ModelMapper;
@@ -38,6 +45,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
+
+import static com.box.l10n.mojito.rest.client.PollableTaskClient.NO_TIMEOUT;
 
 /**
  * @author wyau
@@ -55,18 +64,15 @@ public class CommandHelper {
      */
     private final ByteOrderMark[] boms = {ByteOrderMark.UTF_8, ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE};
 
-//    @Autowired
-//    RepositoryClient repositoryClient;
     @Autowired
     RepositoryService repositoryService;
     @Autowired
-    ModelMapper modelMapper;
+    PollableTaskService pollableTaskService;
+    @Autowired
+    PollableTaskBlobStorage pollableTaskBlobStorage;
 
     @Autowired
-    PollableTaskClient pollableTaskClient;
-
-//    @Autowired
-//    ConsoleWriter consoleWriter;
+    ModelMapper modelMapper;
 
     /**
      * @param repositoryName Name of repository
@@ -232,10 +238,89 @@ public class CommandHelper {
         logger.debug("Running, task id: {} ", pollableId);
 
         try {
-            pollableTaskClient.waitForPollableTask(pollableId, PollableTaskClient.NO_TIMEOUT, new CommandWaitForPollableTaskListener());
+//            pollableTaskClient.waitForPollableTask(pollableId, NO_TIMEOUT, new CommandWaitForPollableTaskListener());
+            waitForPollableTask(pollableId, NO_TIMEOUT, new CommandWaitForPollableTaskListener());
         } catch (PollableTaskException e) {
             throw new CommandException(e.getMessage(), e.getCause());
         }
+    }
+
+    private void waitForPollableTask(Long pollableId, long timeout, WaitForPollableTaskListener waitForPollableTaskListener) {
+        long timeoutTime = System.currentTimeMillis() + timeout;
+        long waitTime = 0;
+
+        PollableTask pollableTask = null;
+
+        while (pollableTask == null || !pollableTask.isAllFinished()) {
+
+            logger.debug("Waiting for PollableTask: {} to finish", pollableId);
+
+            pollableTask = getPollableTask(pollableId);
+
+            List<PollableTask> pollableTaskWithErrors = getAllPollableTasksWithError(pollableTask);
+
+            if (!pollableTaskWithErrors.isEmpty()) {
+
+                for (PollableTask pollableTaskWithError : pollableTaskWithErrors) {
+                    logger.debug("Error happened in PollableTask {}: {}", pollableTaskWithError.getId(), pollableTaskWithError.getErrorMessage().getMessage());
+                }
+
+                // Last task is the root task if it has an error or any of the sub task
+                // TODO(P1) we might want to show all errors
+                PollableTask lastTaskInError = pollableTaskWithErrors.get(pollableTaskWithErrors.size() - 1);
+
+                throw new PollableTaskExecutionException(lastTaskInError.getErrorMessage().getMessage());
+            }
+
+            if (waitForPollableTaskListener != null) {
+                waitForPollableTaskListener.afterPoll(pollableTask);
+            }
+
+            if (!pollableTask.isAllFinished()) {
+
+                if (timeout != NO_TIMEOUT && System.currentTimeMillis() > timeoutTime) {
+                    logger.debug("Timed out waiting for PollableTask: {} to finish. \n{}", pollableId, ReflectionToStringBuilder.toString(pollableTask));
+                    throw new PollableTaskTimeoutException("Timed out waiting for PollableTask: " + pollableId);
+                }
+
+                try {
+                    Thread.sleep(waitTime);
+                    waitTime = getNextWaitTime(waitTime);
+                } catch (InterruptedException ie) {
+                    throw new RuntimeException(ie);
+                }
+            } else {
+                logger.debug("PollableTask: {} finished", pollableId);
+            }
+        }
+    }
+
+    private long getNextWaitTime(long lastWaitTime) {
+        int maxTime = 500;
+        long nextWaitTime = lastWaitTime + 25;
+        nextWaitTime = Math.max(maxTime, nextWaitTime);
+        return nextWaitTime;
+    }
+
+    private List<PollableTask> getAllPollableTasksWithError(PollableTask pollableTask) {
+        List<PollableTask> result = new ArrayList<>();
+        recursivelyGetAllPollableTaskWithError(pollableTask, result);
+        return result;
+    }
+
+    private void recursivelyGetAllPollableTaskWithError(PollableTask pollableTask, List<PollableTask> pollableTasksWithError) {
+        for (PollableTask subTask : pollableTask.getSubTasks()) {
+            recursivelyGetAllPollableTaskWithError(subTask, pollableTasksWithError);
+        }
+
+        if (pollableTask.getErrorMessage() != null) {
+            pollableTasksWithError.add(pollableTask);
+        }
+    }
+
+    private PollableTask getPollableTask(Long pollableId) {
+        com.box.l10n.mojito.entity.PollableTask pollableTask = pollableTaskService.getPollableTask(pollableId);
+        return modelMapper.map(pollableTask, PollableTask.class);
     }
 
     /**
