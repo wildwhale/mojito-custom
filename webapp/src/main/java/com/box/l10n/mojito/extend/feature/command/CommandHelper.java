@@ -13,6 +13,7 @@ import com.box.l10n.mojito.rest.entity.Locale;
 import com.box.l10n.mojito.rest.entity.PollableTask;
 import com.box.l10n.mojito.rest.entity.Repository;
 import com.box.l10n.mojito.rest.entity.RepositoryLocale;
+import com.box.l10n.mojito.service.repository.RepositoryService;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -24,10 +25,12 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.BOMInputStream;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,8 +55,12 @@ public class CommandHelper {
      */
     private final ByteOrderMark[] boms = {ByteOrderMark.UTF_8, ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE};
 
+//    @Autowired
+//    RepositoryClient repositoryClient;
     @Autowired
-    RepositoryClient repositoryClient;
+    RepositoryService repositoryService;
+    @Autowired
+    ModelMapper modelMapper;
 
     @Autowired
     PollableTaskClient pollableTaskClient;
@@ -67,12 +74,16 @@ public class CommandHelper {
      */
     public Repository findRepositoryByName(String repositoryName) throws CommandException {
 
-        try {
-            Preconditions.checkNotNull(repositoryName, "Repository name can't be null");
-            return repositoryClient.getRepositoryByName(repositoryName);
-        } catch (RestClientException e) {
-            throw new CommandException("Repository [" + repositoryName + "] is not found", e);
+        Preconditions.checkNotNull(repositoryName, "Repository name can't be null");
+        List<com.box.l10n.mojito.entity.Repository> repositories = repositoryService.findRepositoriesIsNotDeletedOrderByName(repositoryName);
+        if (ObjectUtils.isEmpty(repositories)) {
+            throw new CommandException("Repository [" + repositoryName + "] is not found");
         }
+        return convertRepositoryObject(repositories.get(0));
+    }
+
+    private Repository convertRepositoryObject(com.box.l10n.mojito.entity.Repository from) {
+        return modelMapper.map(from, Repository.class);
     }
 
     /**

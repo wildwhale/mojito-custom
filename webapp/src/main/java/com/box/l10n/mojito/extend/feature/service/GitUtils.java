@@ -55,8 +55,10 @@ public class GitUtils {
         logger.info("all changed push : {}", gitRepo.getRepository().getBranch());
     }
 
-    public static void pull(Git git) throws Exception {
-        git.pull().call();
+    public static void pull(Git git, String id, String password) throws Exception {
+        git.pull()
+                .setCredentialsProvider(new UsernamePasswordCredentialsProvider(id, password))
+                .call();
     }
 
     public static Git checkout(String gitUri, String id, String password, String repository) throws Exception {
@@ -81,7 +83,7 @@ public class GitUtils {
         }
         checkoutCommand(gitRepo, branch);
         logger.info("git checkout : {}", branch);
-        GitUtils.pull(gitRepo);
+        GitUtils.pull(gitRepo, id, password);
         logger.info("git pull : {}", branch);
         gitRepo.close();
         return repoFile;

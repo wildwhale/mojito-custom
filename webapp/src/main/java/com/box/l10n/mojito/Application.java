@@ -3,6 +3,7 @@ package com.box.l10n.mojito;
 import com.box.l10n.mojito.entity.BaseEntity;
 import com.box.l10n.mojito.json.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.system.ApplicationPidFileWriter;
@@ -22,6 +23,7 @@ import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.retry.backoff.ExponentialRandomBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -35,6 +37,7 @@ import java.io.IOException;
 @EnableJpaAuditing
 @EnableJpaRepositories
 @EnableScheduling
+@EnableAsync
 @EnableTransactionManagement(mode = AdviceMode.ASPECTJ)
 @EnableRetry
 @EntityScan(basePackageClasses = BaseEntity.class)
@@ -62,6 +65,11 @@ public class Application {
     @Primary
     public ObjectMapper getObjectMapper() {
         return new ObjectMapper();
+    }
+
+    @Bean
+    public ModelMapper getModelMapper() {
+        return new ModelMapper();
     }
 
     @Bean(name="fail_on_unknown_properties_false")

@@ -1,5 +1,6 @@
 package com.box.l10n.mojito.extend.feature.service;
 
+import com.box.l10n.mojito.entity.Asset;
 import com.box.l10n.mojito.extend.feature.command.CommandDirectories;
 import com.box.l10n.mojito.extend.feature.command.CommandException;
 import com.box.l10n.mojito.extend.feature.command.CommandHelper;
@@ -8,6 +9,15 @@ import com.box.l10n.mojito.json.ObjectMapper;
 import com.box.l10n.mojito.rest.client.AssetClient;
 import com.box.l10n.mojito.rest.client.exception.AssetNotFoundException;
 import com.box.l10n.mojito.rest.entity.*;
+import com.box.l10n.mojito.rest.entity.LocalizedAssetBody;
+import com.box.l10n.mojito.rest.entity.Repository;
+import com.box.l10n.mojito.rest.entity.RepositoryLocale;
+import com.box.l10n.mojito.service.NormalizationUtils;
+import com.box.l10n.mojito.service.asset.AssetRepository;
+import com.box.l10n.mojito.service.asset.AssetService;
+import com.box.l10n.mojito.service.repository.RepositoryLocaleRepository;
+import com.box.l10n.mojito.service.tm.TMService;
+import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,11 +36,21 @@ public class PullService {
     @Autowired
     AssetClient assetClient;
     @Autowired
+    AssetService assetService;
+    @Autowired
+    AssetRepository assetRepository;
+    @Autowired
+    TMService tmService;
+    @Autowired
+    RepositoryLocaleRepository repositoryLocaleRepository;
+    @Autowired
     CommandHelper commandHelper;
     @Autowired
     ObjectMapper objectMapper;
+    @Autowired
+    ModelMapper modelMapper;
 
-    public List<String> execute(String mojitoRepoName, String sourceDirPath, LocalizedAssetBody.Status status) throws CommandException {
+    public List<String> execute(String mojitoRepoName, String sourceDirPath, LocalizedAssetBody.Status status) throws CommandException, AssetNotFoundException {
 
         Repository repository = commandHelper.findRepositoryByName(mojitoRepoName);
         CommandDirectories commandDirectories = new CommandDirectories(sourceDirPath, null);
@@ -54,7 +74,7 @@ public class PullService {
      * @throws CommandException
      * @return
      */
-    List<String> generateLocalizedFilesWithoutLocaleMapping(Repository repository, FileMatch sourceFileMatch, Map<String, RepositoryLocale> repositoryLocalesWithoutRootLocale, List<String> filterOptions, LocalizedAssetBody.Status status) throws CommandException {
+    List<String> generateLocalizedFilesWithoutLocaleMapping(Repository repository, FileMatch sourceFileMatch, Map<String, RepositoryLocale> repositoryLocalesWithoutRootLocale, List<String> filterOptions, LocalizedAssetBody.Status status) throws CommandException, AssetNotFoundException {
 
         logger.debug("Generate localized files (without locale mapping)");
 
@@ -66,7 +86,7 @@ public class PullService {
         return localizedFiles;
     }
 
-    String generateLocalizedFile(Repository repository, FileMatch sourceFileMatch, List<String> filterOptions, String outputBcp47tag, RepositoryLocale repositoryLocale, LocalizedAssetBody.Status status) throws CommandException {
+    String generateLocalizedFile(Repository repository, FileMatch sourceFileMatch, List<String> filterOptions, String outputBcp47tag, RepositoryLocale repositoryLocale, LocalizedAssetBody.Status status) throws CommandException, AssetNotFoundException {
         if (shouldGenerateLocalizedFile(repositoryLocale)) {
             LocalizedAssetBody localizedAsset = getLocalizedAsset(repository, sourceFileMatch, repositoryLocale, outputBcp47tag, filterOptions, status);
             return writeLocalizedAssetToTargetDirectory(localizedAsset, sourceFileMatch);
@@ -111,16 +131,18 @@ public class PullService {
         return relativeTargetFilePath.toString();
     }
 
-    LocalizedAssetBody getLocalizedAsset(Repository repository, FileMatch sourceFileMatch, RepositoryLocale repositoryLocale, String outputBcp47tag, List<String> filterOptions, LocalizedAssetBody.Status status) throws CommandException {
+    LocalizedAssetBody getLocalizedAsset(Repository repository, FileMatch sourceFileMatch, RepositoryLocale repositoryLocale, String outputBcp47tag, List<String> filterOptions, LocalizedAssetBody.Status status) throws CommandException, AssetNotFoundException {
         logger.info(" - Processing locale: {}", repositoryLocale.getLocale().getBcp47Tag());
 
         String sourcePath = sourceFileMatch.getSourcePath();
         Asset assetByPathAndRepositoryId;
-        try {
-            logger.debug("Getting the asset for path: {} and locale: {}", sourcePath, repositoryLocale.getLocale().getBcp47Tag());
-            assetByPathAndRepositoryId = assetClient.getAssetByPathAndRepositoryId(sourcePath, repository.getId());
-        } catch (AssetNotFoundException e) {
-            throw new CommandException("Asset with path [" + sourcePath + "] was not found in repo ", e);
+
+        logger.debug("Getting the asset for path: {} and locale: {}", sourcePath, repositoryLocale.getLocale().getBcp47Tag());
+        List<com.box.l10n.mojito.entity.Asset> all = assetService.findAll(repository.getId(), sourcePath, false, false, null);
+        if (all.size() > 0) {
+            assetByPathAndRepositoryId = all.get(0);
+        } else {
+            throw new AssetNotFoundException("Asset with path [" + sourcePath + "] was not found in repo ");
         }
 
         String assetContent = commandHelper.getFileContentWithXcodePatch(sourceFileMatch);
@@ -140,22 +162,66 @@ public class PullService {
         int maxCount = 5;
         while (localizedAsset == null && count < maxCount) {
             try {
-                localizedAsset = assetClient.getLocalizedAssetForContent(
-                        assetByPathAndRepositoryId.getId(),
-                        repositoryLocale.getLocale().getId(),
-                        assetContent,
-                        outputBcp47tag,
-                        sourceFileMatch.getFileType().getFilterConfigIdOverride(),
-                        filterOptions,
-                        status,
-                        LocalizedAssetBody.InheritanceMode.REMOVE_UNTRANSLATED
+                LocalizedAssetBody localizedAssetBody = new LocalizedAssetBody();
+                localizedAssetBody.setAssetId(assetByPathAndRepositoryId.getId());
+                localizedAssetBody.setLocaleId(repositoryLocale.getLocale().getId());
+                localizedAssetBody.setContent(assetContent);
+                localizedAssetBody.setOutputBcp47tag(outputBcp47tag);
+                localizedAssetBody.setFilterConfigIdOverride(sourceFileMatch.getFileType().getFilterConfigIdOverride());
+                localizedAssetBody.setFilterOptions(filterOptions);
+                localizedAssetBody.setInheritanceMode(LocalizedAssetBody.InheritanceMode.REMOVE_UNTRANSLATED);
+                localizedAssetBody.setStatus(status);
+
+//                logger.debug("Localizing content payload with asset id = {}, and locale id = {}", assetId, localeId);
+
+                Asset asset = assetRepository.getOne(localizedAssetBody.getAssetId());
+                com.box.l10n.mojito.entity.RepositoryLocale repositoryLocaleEntity = repositoryLocaleRepository.findByRepositoryIdAndLocaleId(asset.getRepository().getId(), localizedAssetBody.getLocaleId());
+
+                String normalizedContent = NormalizationUtils.normalize(localizedAssetBody.getContent());
+
+                String generateLocalized = tmService.generateLocalized(
+                        asset,
+                        normalizedContent,
+                        repositoryLocaleEntity,
+                        localizedAssetBody.getOutputBcp47tag(),
+                        localizedAssetBody.getFilterConfigIdOverride(),
+                        localizedAssetBody.getFilterOptions(),
+                        convertStatusObject(localizedAssetBody.getStatus()),
+                        convertInheritanceObject(localizedAssetBody.getInheritanceMode())
                 );
+
+                localizedAssetBody.setContent(generateLocalized);
+
+                if (localizedAssetBody.getOutputBcp47tag() != null) {
+                    localizedAssetBody.setBcp47Tag(localizedAssetBody.getOutputBcp47tag());
+                } else {
+                    localizedAssetBody.setBcp47Tag(repositoryLocaleEntity.getLocale().getBcp47Tag());
+                }
+
+//                localizedAsset = assetClient.getLocalizedAssetForContent(
+//                        assetByPathAndRepositoryId.getId(),
+//                        repositoryLocale.getLocale().getId(),
+//                        assetContent,
+//                        outputBcp47tag,
+//                        sourceFileMatch.getFileType().getFilterConfigIdOverride(),
+//                        filterOptions,
+//                        status,
+//                        LocalizedAssetBody.InheritanceMode.REMOVE_UNTRANSLATED
+//                );
             } catch (Exception e) {
                 count++;
                 logger.info("Attempt {} / {} for locale: {} failed. Retrying...", count, maxCount, repositoryLocale.getLocale().getBcp47Tag());
             }
         }
         return localizedAsset;
+    }
+
+    private com.box.l10n.mojito.okapi.Status convertStatusObject(com.box.l10n.mojito.rest.entity.LocalizedAssetBody.Status status) {
+        return modelMapper.map(status, com.box.l10n.mojito.okapi.Status.class);
+    }
+
+    private com.box.l10n.mojito.okapi.InheritanceMode convertInheritanceObject(com.box.l10n.mojito.rest.entity.LocalizedAssetBody.InheritanceMode inheritanceMode) {
+        return modelMapper.map(inheritanceMode, com.box.l10n.mojito.okapi.InheritanceMode.class);
     }
 
     private boolean shouldGenerateLocalizedFile(RepositoryLocale repositoryLocale) {

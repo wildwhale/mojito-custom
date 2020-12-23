@@ -1,10 +1,7 @@
 package com.box.l10n.mojito.extend.feature.controller;
 
 import com.box.l10n.mojito.entity.Repository;
-import com.box.l10n.mojito.extend.feature.dto.DeployParam;
-import com.box.l10n.mojito.extend.feature.dto.DeployRes;
-import com.box.l10n.mojito.extend.feature.dto.UploadRes;
-import com.box.l10n.mojito.extend.feature.dto.UploadParam;
+import com.box.l10n.mojito.extend.feature.dto.*;
 import com.box.l10n.mojito.extend.feature.service.ResourceService;
 import com.box.l10n.mojito.rest.client.exception.RepositoryNotFoundException;
 import org.slf4j.Logger;
@@ -33,6 +30,12 @@ public class TMResource {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @ResponseStatus(HttpStatus.OK)
+    @RequestMapping(value = "/extend/api/resource/upload/async", method = RequestMethod.POST)
+    public void asyncUpload(@RequestBody UploadParam uploadParam) throws Exception {
+        resourceService.asyncUpload(uploadParam);
+    }
+
     /*
      * status : ALL, ACCEPTED_OR_NEEDS_REVIEW, ACCEPTED
      */
@@ -45,8 +48,14 @@ public class TMResource {
     }
 
     @ResponseStatus(HttpStatus.OK)
+    @RequestMapping(value = "/extend/api/resource/deploy/async", method = RequestMethod.POST)
+    public void asyncDeploy(@RequestBody DeployParam deployParam) throws Exception {
+        resourceService.asyncDeploy(deployParam);
+    }
+
+    @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/delete", method = RequestMethod.POST)
-    public void delete(@RequestParam(value = "repositoryName") String repositoryName) throws RepositoryNotFoundException {
-        resourceService.deleteRepository(repositoryName);
+    public void delete(@RequestBody DeleteParam deleteParam) throws RepositoryNotFoundException {
+        resourceService.deleteRepository(deleteParam.getRepositoryName());
     }
 }

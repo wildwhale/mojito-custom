@@ -11,6 +11,7 @@ import org.eclipse.jgit.api.Git;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedWriter;
@@ -44,6 +45,11 @@ public class ResourceService {
         return pushMojitoResource(param.getMojitoRepoName(), assetStream);
     }
 
+    @Async
+    public void asyncUpload(UploadParam param) throws Exception {
+        upload(param);
+    }
+
     public List<String> deploy(DeployParam param) throws Exception {
         // working git branch로 변경
         Git gitRepo = GitUtils.checkoutCommand(param.getGitRepoName(), param.getFromBranch());
@@ -64,12 +70,13 @@ public class ResourceService {
         return localizedFiles;
     }
 
-    private void createMojitoRepository(String mojitoRepoName, String[] locales) {
-        try {
-            mojitoRepository.create(mojitoRepoName, locales);
-        } catch (Exception e) {
-            logger.warn("{} exist", mojitoRepoName);
-        }
+    @Async
+    public void asyncDeploy(DeployParam param) throws Exception {
+        deploy(param);
+    }
+
+    private void createMojitoRepository(String mojitoRepoName, String[] locales) throws CommandException {
+        mojitoRepository.create(mojitoRepoName, locales);
     }
 
     private Stream<SourceAsset> extractResource(File repo, String mojitoRepoName, String fileType) throws CommandException {
