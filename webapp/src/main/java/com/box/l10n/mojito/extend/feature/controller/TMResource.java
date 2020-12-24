@@ -22,6 +22,7 @@ public class TMResource {
     @Autowired
     ResourceService resourceService;
 
+    @CrossOrigin
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/upload", method = RequestMethod.POST)
     public ResponseEntity<UploadRes> upload(@RequestBody UploadParam uploadParam) throws Exception {
@@ -30,6 +31,7 @@ public class TMResource {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @CrossOrigin
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/upload/async", method = RequestMethod.POST)
     public void asyncUpload(@RequestBody UploadParam uploadParam) throws Exception {
@@ -39,6 +41,7 @@ public class TMResource {
     /*
      * status : ALL, ACCEPTED_OR_NEEDS_REVIEW, ACCEPTED
      */
+    @CrossOrigin
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/deploy", method = RequestMethod.POST)
     public ResponseEntity<DeployRes> deploy(@RequestBody DeployParam deployParam) throws Exception {
@@ -47,12 +50,14 @@ public class TMResource {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @CrossOrigin
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/deploy/async", method = RequestMethod.POST)
     public void asyncDeploy(@RequestBody DeployParam deployParam) throws Exception {
         resourceService.asyncDeploy(deployParam);
     }
 
+    @CrossOrigin
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/delete", method = RequestMethod.POST)
     public void delete(@RequestBody DeleteParam deleteParam) throws RepositoryNotFoundException {
