@@ -26,7 +26,9 @@ public class TMResource {
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/upload", method = RequestMethod.POST)
     public ResponseEntity<UploadRes> upload(@RequestBody UploadParam uploadParam) throws Exception {
+        logger.debug("TM resource upload start!");
         Repository repository = resourceService.upload(uploadParam);
+        logger.debug("TM resource upload end!");
         UploadRes response = new UploadRes(repository);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
@@ -45,7 +47,9 @@ public class TMResource {
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/deploy", method = RequestMethod.POST)
     public ResponseEntity<DeployRes> deploy(@RequestBody DeployParam deployParam) throws Exception {
+        logger.debug("TM resource deploy start!");
         List<String> localizedFiles = resourceService.deploy(deployParam);
+        logger.debug("TM resource deploy end!");
         DeployRes response = new DeployRes(localizedFiles);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
@@ -61,6 +65,8 @@ public class TMResource {
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "/extend/api/resource/delete", method = RequestMethod.POST)
     public void delete(@RequestBody DeleteParam deleteParam) throws RepositoryNotFoundException {
+        logger.debug("mojito repository delete start!");
         resourceService.deleteRepository(deleteParam.getRepositoryName());
+        logger.debug("mojito repository delete end!");
     }
 }

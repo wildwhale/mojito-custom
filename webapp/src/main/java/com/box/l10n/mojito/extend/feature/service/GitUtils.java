@@ -1,15 +1,15 @@
 package com.box.l10n.mojito.extend.feature.service;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jgit.api.*;
-import org.eclipse.jgit.api.errors.CheckoutConflictException;
+import org.eclipse.jgit.api.CheckoutCommand;
+import org.eclipse.jgit.api.CreateBranchCommand;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.notes.NotesMergeConflictException;
 import org.eclipse.jgit.transport.CredentialsProvider;
-import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
 import java.util.List;
 
 public class GitUtils {
@@ -26,6 +25,7 @@ public class GitUtils {
     private static Logger logger = LoggerFactory.getLogger(GitUtils.class);
 
     public static Git init(File dir) throws Exception {
+        logger.info("{} : git repo init", dir.getAbsolutePath());
         return Git.init().setDirectory(dir).call();
     }
 
@@ -33,6 +33,7 @@ public class GitUtils {
         Git git = null;
         try {
             git = Git.open(dir);
+            logger.info("{} dir git open", dir.getAbsolutePath());
         } catch (RepositoryNotFoundException e) {
             git = GitUtils.init(dir);
         }
@@ -45,7 +46,7 @@ public class GitUtils {
                 .setCredentialsProvider(cp)
                 .setForce(true)
                 .call();
-        logger.info("all changed push : {}", gitRepo.getRepository().getBranch());
+        logger.info("push : {}", gitRepo.getRepository().getBranch());
     }
 
     public static void pushAllChanged(Git gitRepo, String id, String password, String message) throws Exception {
@@ -57,8 +58,10 @@ public class GitUtils {
 
     public static void pull(Git git, String id, String password) throws Exception {
         git.pull()
-                .setCredentialsProvider(new UsernamePasswordCredentialsProvider(id, password))
-                .call();
+            .setCredentialsProvider(new UsernamePasswordCredentialsProvider(id, password))
+            .call();
+
+        logger.info("pull : {}", git.getRepository().getDirectory().getAbsolutePath());
     }
 
     public static Git checkout(String gitUri, String id, String password, String repository) throws Exception {
@@ -68,32 +71,8 @@ public class GitUtils {
                 .setNoCheckout(false)//
                 .setCredentialsProvider(new UsernamePasswordCredentialsProvider(id, password))
                 .call();
+        logger.info("checkout : {}", gitUri);
         return gitRepo;
-    }
-
-    public static File downloadResource(String url, String id, String password, String branch, String repositoryName) throws Exception {
-        File repoFile = getWorkingDir(repositoryName);
-        // create repository
-        Git gitRepo = null;
-        if (!repoFile.exists()) {
-            logger.info("{}: not exist, resource checkout", repositoryName);
-            gitRepo = checkout(url, id, password, repositoryName);
-        } else {
-            gitRepo = open(repoFile);
-        }
-        checkoutCommand(gitRepo, branch);
-        logger.info("git checkout : {}", branch);
-        GitUtils.pull(gitRepo, id, password);
-        logger.info("git pull : {}", branch);
-        gitRepo.close();
-        return repoFile;
-    }
-
-    public static boolean isLocalBranchExist(Git gitRepo, String branch) throws GitAPIException {
-        final List<Ref> branchListResult = gitRepo.branchList().call();
-        return branchListResult
-                .stream()
-                .anyMatch(ref -> ref.getName().endsWith(branch));
     }
 
     public static Git checkoutCommand(String repositoryName, String branch) throws Exception {
@@ -123,11 +102,35 @@ public class GitUtils {
         ObjectId objectId = gitRepo.getRepository().resolve(fromBranch);
         MergeResult mergeResult = gitRepo.merge().include(objectId).call();
 
+        logger.info("{} git repo merge [ {} ] to [ {} ] success", gitRepo.getRepository().getDirectory().getAbsolutePath(), fromBranch, toBranch);
         if (mergeResult.getMergeStatus().equals(MergeResult.MergeStatus.CONFLICTING)){
             logger.error("merge error : {}", mergeResult.getConflicts().toString());
             // inform the user he has to handle the conflicts
             throw new Exception("merge error : " + mergeResult.getConflicts().toString());
         }
+    }
+
+    public static File downloadResource(String url, String id, String password, String branch, String repositoryName) throws Exception {
+        File repoFile = getWorkingDir(repositoryName);
+        // create repository
+        Git gitRepo = null;
+        if (!repoFile.exists()) {
+            logger.info("{}: not exist, resource checkout", repositoryName);
+            gitRepo = checkout(url, id, password, repositoryName);
+        } else {
+            gitRepo = open(repoFile);
+        }
+        checkoutCommand(gitRepo, branch);
+        GitUtils.pull(gitRepo, id, password);
+        gitRepo.close();
+        return repoFile;
+    }
+
+    public static boolean isLocalBranchExist(Git gitRepo, String branch) throws GitAPIException {
+        final List<Ref> branchListResult = gitRepo.branchList().call();
+        return branchListResult
+                .stream()
+                .anyMatch(ref -> ref.getName().endsWith(branch));
     }
 
     public static File getWorkingDir(String dirName) {

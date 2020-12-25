@@ -25,10 +25,7 @@ public class ResourceExtractor {
 
     public Stream<SourceAsset> extract(String sourceDirectoryPath, String repositoryName, String fileType) throws CommandException {
         CommandDirectories commandDirectories = new CommandDirectories(sourceDirectoryPath);
-
         Repository repository = getRepository(repositoryName);
-
-//        FileType fileType1 = FileTypes.valueOf(fileType.toUpperCase());
         ArrayList<FileMatch> sourceFileMatches = commandHelper.getSourceFileMatches(commandDirectories, FileTypes.valueOf(fileType.toUpperCase()).toFileType(), null, null);
 
         return sourceFileMatches.stream().map(sourceFileMatch -> {

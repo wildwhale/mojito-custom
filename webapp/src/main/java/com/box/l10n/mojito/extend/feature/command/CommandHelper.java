@@ -55,12 +55,12 @@ public class CommandHelper {
      */
     private final ByteOrderMark[] boms = {ByteOrderMark.UTF_8, ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE};
 
+    @Autowired
+    RepositoryClient repositoryClient;
 //    @Autowired
-//    RepositoryClient repositoryClient;
-    @Autowired
-    RepositoryService repositoryService;
-    @Autowired
-    ModelMapper modelMapper;
+//    RepositoryService repositoryService;
+//    @Autowired
+//    ModelMapper modelMapper;
 
     @Autowired
     PollableTaskClient pollableTaskClient;
@@ -75,16 +75,17 @@ public class CommandHelper {
     public Repository findRepositoryByName(String repositoryName) throws CommandException {
 
         Preconditions.checkNotNull(repositoryName, "Repository name can't be null");
-        List<com.box.l10n.mojito.entity.Repository> repositories = repositoryService.findRepositoriesIsNotDeletedOrderByName(repositoryName);
-        if (ObjectUtils.isEmpty(repositories)) {
-            throw new CommandException("Repository [" + repositoryName + "] is not found");
+        try {
+            Preconditions.checkNotNull(repositoryName, "Repository name can't be null");
+            return repositoryClient.getRepositoryByName(repositoryName);
+        } catch (RestClientException e) {
+            throw new CommandException("Repository [" + repositoryName + "] is not found", e);
         }
-        return convertRepositoryObject(repositories.get(0));
     }
 
-    private Repository convertRepositoryObject(com.box.l10n.mojito.entity.Repository from) {
-        return modelMapper.map(from, Repository.class);
-    }
+//    private Repository convertRepositoryObject(com.box.l10n.mojito.entity.Repository from) {
+//        return modelMapper.map(from, Repository.class);
+//    }
 
     /**
      * package com.box.l10n.mojito.custom.feature.filefinder;
