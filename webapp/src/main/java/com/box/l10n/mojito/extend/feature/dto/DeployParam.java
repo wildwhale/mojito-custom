@@ -10,9 +10,18 @@ public class DeployParam {
     private String fromBranch = "develop";
     private String toBranch = "master";
     private String mojitoRepoName;
+    private String fileType;
     private String version;
     private String commitMessage = "fix: version up";
     private LocalizedAssetBody.Status status = LocalizedAssetBody.Status.ACCEPTED;
+
+    public String getFileType() {
+        return fileType;
+    }
+
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
+    }
 
     public String getGitRepoName() {
         return gitRepoName;

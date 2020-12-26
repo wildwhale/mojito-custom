@@ -40,7 +40,7 @@ public class MojitoRepository {
         return pushService.execute(repository, sourceAssetStream, branchName, PushService.PushType.NORMAL);
     }
 
-    public List<String> pull(String gitRepoName, String mojitoRepoName, LocalizedAssetBody.Status status) throws CommandException, AssetNotFoundException {
+    public List<String> pull(String gitRepoName, String mojitoRepoName, String fileType, LocalizedAssetBody.Status status) throws CommandException, AssetNotFoundException {
         String sourceDirPath = null;
         // mojitoRepoName 설정 하지 않을 경우는 깃 디렉토리 이름이 레포 이름
         if (StringUtils.isEmpty(mojitoRepoName)) {
@@ -49,7 +49,7 @@ public class MojitoRepository {
             sourceDirPath = GitUtils.getWorkingDir(String.format("%s/%s", gitRepoName, mojitoRepoName)).toString();
         }
         logger.debug("working dir path : {}", sourceDirPath);
-        return pullService.execute(mojitoRepoName, sourceDirPath, status);
+        return pullService.execute(mojitoRepoName, sourceDirPath, fileType, status);
     }
 
     public void create(String repositoryName, String[] locales) throws CommandException {

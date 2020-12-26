@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.util.StringUtils;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -38,9 +39,11 @@ public class ResourceService {
         // git checkout or pull in local working dir
         File repo = GitUtils.downloadResource(param.getGitUrl(), param.getGitId(), param.getGitPassword(), param.getBranch(), param.getGitRepoName());
         // 모히또 레포 없으면 생성
-        createMojitoRepository(param.getMojitoRepoName(), param.getLocales());
+        String mojitoRepoName = StringUtils.isEmpty(param.getMojitoRepoName()) ? param.getGitRepoName() : param.getMojitoRepoName();
+        createMojitoRepository(mojitoRepoName, param.getLocales());
         // extract
-        Stream<SourceAsset> assetStream = extractResource(repo, param.getMojitoRepoName(), param.getFileType());
+        String resourcePath = StringUtils.isEmpty(param.getMojitoRepoName()) ? repo.getPath() : repo.getPath() + "/" + mojitoRepoName;
+        Stream<SourceAsset> assetStream = extractResource(resourcePath, mojitoRepoName, param.getFileType());
         // push repository
         return pushMojitoResource(param.getMojitoRepoName(), assetStream);
     }
@@ -54,7 +57,7 @@ public class ResourceService {
         // working git branch로 변경
         Git gitRepo = GitUtils.checkoutCommand(param.getGitRepoName(), param.getFromBranch());
         // pullCommand process 진행 (mojito db 내용을 file로 생성 )
-        List<String> localizedFiles = mojitoRepository.pull(param.getGitRepoName(), param.getMojitoRepoName(), param.getStatus());
+        List<String> localizedFiles = mojitoRepository.pull(param.getGitRepoName(), param.getMojitoRepoName(), param.getFileType(), param.getStatus());
         // modify VERSION file ( file open & 수정 )
         modifyVersion(gitRepo, param.getVersion());
         // commit & push
@@ -79,8 +82,7 @@ public class ResourceService {
         mojitoRepository.create(mojitoRepoName, locales);
     }
 
-    private Stream<SourceAsset> extractResource(File repo, String mojitoRepoName, String fileType) throws CommandException {
-        String resourcePath = repo.getPath() + "/" + mojitoRepoName;
+    private Stream<SourceAsset> extractResource(String resourcePath, String mojitoRepoName, String fileType) throws CommandException {
         return resourceExtractor.extract(resourcePath, mojitoRepoName, fileType);
     }
 

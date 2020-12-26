@@ -4,6 +4,7 @@ import com.box.l10n.mojito.extend.feature.command.CommandDirectories;
 import com.box.l10n.mojito.extend.feature.command.CommandException;
 import com.box.l10n.mojito.extend.feature.command.CommandHelper;
 import com.box.l10n.mojito.extend.feature.filefinder.FileMatch;
+import com.box.l10n.mojito.extend.feature.filefinder.file.FileTypes;
 import com.box.l10n.mojito.json.ObjectMapper;
 import com.box.l10n.mojito.rest.client.AssetClient;
 import com.box.l10n.mojito.rest.client.exception.AssetNotFoundException;
@@ -39,13 +40,13 @@ public class PullService {
     @Autowired
     ObjectMapper objectMapper;
 
-    public List<String> execute(String mojitoRepoName, String sourceDirPath, LocalizedAssetBody.Status status) throws CommandException {
+    public List<String> execute(String mojitoRepoName, String sourceDirPath, String fileType, LocalizedAssetBody.Status status) throws CommandException {
 
         Repository repository = commandHelper.findRepositoryByName(mojitoRepoName);
         CommandDirectories commandDirectories = new CommandDirectories(sourceDirPath, null);
         Map<String, RepositoryLocale> repositoryLocalesWithoutRootLocale = initRepositoryLocalesMapAndRootRepositoryLocale(repository);
         List<String> localizedFiles = new ArrayList<>();
-        for (FileMatch sourceFileMatch : commandHelper.getSourceFileMatches(commandDirectories, null, null, null)) {
+        for (FileMatch sourceFileMatch : commandHelper.getSourceFileMatches(commandDirectories, FileTypes.valueOf(fileType.toUpperCase()).toFileType(), null, null)) {
             List<String> filterOptions = commandHelper.getFilterOptionsOrDefaults(sourceFileMatch.getFileType(), null);
             List<String> files = generateLocalizedFilesWithoutLocaleMapping(repository, sourceFileMatch, repositoryLocalesWithoutRootLocale, filterOptions, status);
             localizedFiles.addAll(files);
