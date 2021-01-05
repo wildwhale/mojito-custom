@@ -4,6 +4,7 @@ import com.box.l10n.mojito.entity.Repository;
 import com.box.l10n.mojito.extend.feature.dto.*;
 import com.box.l10n.mojito.extend.feature.service.ResourceService;
 import com.box.l10n.mojito.rest.client.exception.RepositoryNotFoundException;
+import com.box.l10n.mojito.security.JwtTokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,8 @@ public class TMResource {
      */
     @Autowired
     ResourceService resourceService;
+    @Autowired
+    JwtTokenProvider jwtTokenProvider;
 
     @CrossOrigin
     @ResponseStatus(HttpStatus.OK)

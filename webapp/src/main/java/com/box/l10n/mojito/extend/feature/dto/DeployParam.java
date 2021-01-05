@@ -2,15 +2,22 @@ package com.box.l10n.mojito.extend.feature.dto;
 
 import com.box.l10n.mojito.rest.entity.LocalizedAssetBody;
 
+import javax.validation.constraints.NotNull;
+
 public class DeployParam {
 
+    @NotNull
     private String gitRepoName;
+    @NotNull
     private String gitId;
+    @NotNull
     private String gitPassword;
     private String fromBranch = "develop";
     private String toBranch = "master";
     private String mojitoRepoName;
+    @NotNull
     private String fileType;
+    @NotNull
     private String version;
     private String commitMessage = "fix: version up";
     private LocalizedAssetBody.Status status = LocalizedAssetBody.Status.ACCEPTED;

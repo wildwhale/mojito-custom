@@ -58,7 +58,8 @@ public class MojitoRepository {
             Set<RepositoryLocale> repositoryLocales = extractRepositoryLocalesFromInput(encodedBcp47Tags, true);
             repositoryClient.createRepository(repositoryName, null, null, repositoryLocales, null, false);
         } catch (ResourceNotCreatedException ex) {
-            throw new CommandException(ex.getMessage(), ex);
+            logger.warn("{} exist repo", repositoryName);
+//            throw new CommandException(ex.getMessage(), ex);
         }
     }
 

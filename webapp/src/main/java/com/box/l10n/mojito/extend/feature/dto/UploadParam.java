@@ -1,14 +1,24 @@
 package com.box.l10n.mojito.extend.feature.dto;
 
 
+import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
+
 public class UploadParam {
+    @NotNull
     private String gitUrl;
+    @NotNull
     private String gitId;
+    @NotNull
     private String gitPassword;
+    @NotNull
     private String branch;
+    @NotNull
     private String gitRepoName;
     private String mojitoRepoName;
+    @NotNull
     private String fileType;
+    @NotNull
     private String[] locales;
 
     public String getGitUrl() {

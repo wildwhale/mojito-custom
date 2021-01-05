@@ -136,5 +136,6 @@
         <module>common</module>
         <module>webapp</module>
         <module>mavenplugin</module>
+        <module>tokengenerator</module>
     </modules>
 </project>
